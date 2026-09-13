@@ -1,7 +1,7 @@
 # Tiny Tapeout project information
 project:
   title:        "ASIC Onboarding Project - Vincent"      # Project title
-  author:       "Vincent"      # Your name
+  author:       "Vincent"      # Your name 
   discord:      "v_i_n_y_x"      # Your discord username, for communication and automatically assigning you a Tapeout role (optional)
   description:  "SPI-controlled PWM peripheral for Tiny Tapeout."      # One line description of what your project does
   language:     "Verilog" # other examples include SystemVerilog, Amaranth, VHDL, etc
