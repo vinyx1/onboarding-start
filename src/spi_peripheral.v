@@ -31,21 +31,6 @@ module spi_peripheral (
     // always record sclk_rising
     wire sclk_rising = sclk_sync2 && !sclk_prev;
 
-    // printing
-    //always @(posedge clk) begin
-    //    $display(
-    //        "t=%0t raw_sclk=%b sync1=%b sync2=%b prev=%b rising=%b copi=%b ncs=%b",
-    //        $time,
-    //        sclk,
-    //        sclk_sync1,
-    //        sclk_sync2,
-    //        sclk_prev,
-    //        sclk_rising,
-    //        copi,
-    //        ncs
-    //    );
-    //end
-
     always @(posedge clk) begin
         if (transaction_ready) begin
             $display(
