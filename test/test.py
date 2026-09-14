@@ -80,7 +80,7 @@ async def send_spi_transaction(dut, r_w, address, data):
     ncs = 1
     bit = 0
     dut.ui_in.value = ui_in_logicarray(ncs, bit, sclk)
-    await ClockCycles(dut.clk, 600)
+
     return ui_in_logicarray(ncs, bit, sclk)
 
 @cocotb.test()
@@ -149,13 +149,142 @@ async def test_spi(dut):
 
     dut._log.info("SPI test completed successfully")
 
+async def setup_dut(dut):
+    clock = Clock(dut.clk, 100, units="ns")  # 10 MHz
+    cocotb.start_soon(clock.start())
+
+    dut.ena.value = 1
+    dut.uio_in.value = 0
+
+    # SPI idle: nCS=1, COPI=0, SCLK=0
+    dut.ui_in.value = ui_in_logicarray(1, 0, 0)
+
+    dut.rst_n.value = 0
+    await ClockCycles(dut.clk, 5)
+    dut.rst_n.value = 1
+    await ClockCycles(dut.clk, 5)
+
 @cocotb.test()
 async def test_pwm_freq(dut):
-    # Write your test here
-    dut._log.info("PWM Frequency test completed successfully")
+    await setup_dut(dut)
 
+    # Enable uo_out[0]
+    await send_spi_transaction(dut, 1, 0x00, 0x01)
+    await ClockCycles(dut.clk, 5)
+
+    # Enable PWM on uo_out[0]
+    await send_spi_transaction(dut, 1, 0x02, 0x01)
+    await ClockCycles(dut.clk, 5)
+
+    # set 50% cycle
+    await send_spi_transaction(dut, 1, 0x04, 0x80)
+    await ClockCycles(dut.clk, 5)
+    
+    # Find first rising edge of uo_out[0]
+    prev = int(dut.uo_out.value) & 1
+
+    while True:
+        await RisingEdge(dut.clk)
+        cur = int(dut.uo_out.value) & 1
+
+        if prev == 0 and cur == 1:
+            t1 = cocotb.utils.get_sim_time(units="ns")
+            break
+
+        prev = cur
+
+    # Find next rising edge
+    prev = int(dut.uo_out.value) & 1
+
+    while True:
+        await RisingEdge(dut.clk)
+        cur = int(dut.uo_out.value) & 1
+
+        if prev == 0 and cur == 1:
+            t2 = cocotb.utils.get_sim_time(units="ns")
+            break
+
+        prev = cur
+
+    period_ns = t2 - t1
+    frequency = 1e9 / period_ns
+
+    dut._log.info(f"PWM frequency = {frequency} Hz")
+
+    assert abs(frequency - 3000) / 3000 <= 0.01, \
+        f"Expected about 3000 Hz, got {frequency} Hz"
+
+    dut._log.info("PWM Frequency test completed successfully")
+# make TESTCASE=test_pwm_freq
 
 @cocotb.test()
 async def test_pwm_duty(dut):
-    # Write your test here
+    await setup_dut(dut)
+
+    # Enable uo_out[0]
+    await send_spi_transaction(dut, 1, 0x00, 0x01) # write 0x01 to 0x00 (enable)
+    await ClockCycles(dut.clk, 5)
+
+    # Enable PWM on uo_out[0]
+    await send_spi_transaction(dut, 1, 0x02, 0x01) # write 0x01 to 0x02 (enable pwm)
+    await ClockCycles(dut.clk, 5)
+
+    test_values = [
+        0x00,   # 0%
+        0x40,   # 25%
+        0x80,   # 50%
+        0xC0,   # 75%
+        0xFF,   # 100%
+    ]
+
+    for duty in test_values:
+        await send_spi_transaction(dut, 1, 0x04, duty)
+        await ClockCycles(dut.clk, 5)
+
+        # ~3000 cycles per pwm cycle
+        await ClockCycles(dut.clk, 3500)
+
+        # record % of high signals in 10k, so ~3 pwm cycles
+        high_count = 0
+        samples = 10000
+
+        for _ in range(samples):
+            await RisingEdge(dut.clk)
+
+            if int(dut.uo_out.value) & 1:
+                high_count += 1
+
+        measured = high_count / samples
+
+        if duty == 0xFF:
+            expected = 1.0
+        else:
+            expected = duty / 256.0
+
+        dut._log.info(
+            f"duty register=0x{duty:02X}, "
+            f"expected={expected*100:.2f}%, "
+            f"measured={measured*100:.2f}%"
+        )
+
+        spi = dut.user_project.spi_peripheral_inst
+
+        dut._log.info(
+            f"out_enable = {spi.en_reg_out_7_0.value}"
+        )
+
+        dut._log.info(
+            f"pwm_enable = {spi.en_reg_pwm_7_0.value}"
+        )
+
+        dut._log.info(
+            f"duty = {spi.pwm_duty_cycle.value}"
+        )
+
+
+        assert abs(measured - expected) <= 0.01, \
+            f"Bad duty cycle for 0x{duty:02X}"
+        
+
     dut._log.info("PWM Duty Cycle test completed successfully")
+    # make TESTCASE=test_pwm_duty

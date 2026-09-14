@@ -15,8 +15,6 @@ module tt_um_uwasic_onboarding_vincent (
     input  wire       clk,      // clock
     input  wire       rst_n     // reset_n - low to reset
 );
-    assign uo_out  = ui_in + uio_in;  // Example: ou_out is the sum of ui_in and uio_in
-    assign uio_out = 0;
     // Add this inside the module block
     assign uio_oe = 8'hFF; // Set all IOs to output
     // Create wires to refer to the values of the registers
