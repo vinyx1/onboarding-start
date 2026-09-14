@@ -179,7 +179,7 @@ async def test_pwm_freq(dut):
     # set 50% cycle
     await send_spi_transaction(dut, 1, 0x04, 0x80)
     await ClockCycles(dut.clk, 5)
-    
+
     # Find first rising edge of uo_out[0]
     prev = int(dut.uo_out.value) & 1
 
@@ -266,21 +266,6 @@ async def test_pwm_duty(dut):
             f"expected={expected*100:.2f}%, "
             f"measured={measured*100:.2f}%"
         )
-
-        spi = dut.user_project.spi_peripheral_inst
-
-        dut._log.info(
-            f"out_enable = {spi.en_reg_out_7_0.value}"
-        )
-
-        dut._log.info(
-            f"pwm_enable = {spi.en_reg_pwm_7_0.value}"
-        )
-
-        dut._log.info(
-            f"duty = {spi.pwm_duty_cycle.value}"
-        )
-
 
         assert abs(measured - expected) <= 0.01, \
             f"Bad duty cycle for 0x{duty:02X}"
