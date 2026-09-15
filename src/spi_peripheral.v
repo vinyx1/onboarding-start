@@ -21,7 +21,6 @@ module spi_peripheral (
 
     // for detecting edges
     reg sclk_prev;
-    reg ncs_prev;
 
     // for 16 bit info to pass
     reg [15:0] shift_reg;
